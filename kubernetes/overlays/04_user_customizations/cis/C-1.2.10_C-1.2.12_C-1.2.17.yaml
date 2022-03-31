@@ -1,0 +1,62 @@
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:assert", "assert")
+#@ load("@ytt:base64", "base64")
+#@ load("@ytt:yaml", "yaml")
+#@ load("@ytt:data", "data")
+
+#@ def admin_control_conf():
+apiVersion: apiserver.config.k8s.io/v1
+kind: AdmissionConfiguration
+plugins:
+- name: EventRateLimit
+  path: eventconfig.yaml
+#@ end
+
+#@ def event_rate_conf():
+apiVersion: eventratelimit.admission.k8s.io/v1alpha1
+kind: Configuration
+limits:
+- type: Namespace
+  qps: 50
+  burst: 100
+  cacheSize: 2000
+- type: User
+  qps: 10
+  burst: 50
+#@ end
+
+#@ if data.values.COMPLIANCE == "cis":
+#@overlay/match missing_ok=True,by=overlay.subset({"kind":"KubeadmControlPlane"})
+---
+spec:
+  kubeadmConfigSpec:
+    files:
+      #@overlay/append
+      - path: /etc/kubernetes/admission-control-config.yaml
+        owner: "root:root"
+        permissions: "0600"
+        encoding: base64
+        content: #@ base64.encode(yaml.encode(admin_control_conf()))
+      #@overlay/append
+      - path: /etc/kubernetes/eventconfig.yaml
+        owner: "root:root"
+        permissions: "0600"
+        encoding: base64
+        content: #@ base64.encode(yaml.encode(event_rate_conf()))
+    clusterConfiguration:
+      apiServer:
+        extraArgs:
+         #@overlay/match missing_ok=True
+         enable-admission-plugins: "AlwaysPullImages,NodeRestriction,EventRateLimit"
+         #@overlay/match missing_ok=True
+         admission-control-config-file: "/etc/kubernetes/admission-control-config.yaml"
+        extraVolumes:
+          #@overlay/append
+          - name: admin-control-conf
+            hostPath: /etc/kubernetes/admission-control-config.yaml 
+            mountPath: /etc/kubernetes/admission-control-config.yaml
+          #@overlay/append
+          - name: event-conf
+            hostPath: /etc/kubernetes/eventconfig.yaml
+            mountPath: /etc/kubernetes/eventconfig.yaml
+#@ end

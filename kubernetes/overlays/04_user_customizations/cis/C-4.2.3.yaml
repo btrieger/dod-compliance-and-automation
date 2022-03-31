@@ -1,0 +1,32 @@
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:assert", "assert")
+#@ load("@ytt:base64", "base64")
+#@ load("@ytt:yaml", "yaml")
+#@ load("@ytt:data", "data")
+#@ if data.values.COMPLIANCE == "cis":
+#@overlay/match missing_ok=True,by=overlay.subset({"kind":"KubeadmControlPlane"})
+---
+spec:
+  kubeadmConfigSpec:
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          #@overlay/match missing_ok=True
+           client-ca-file: "/etc/kubernetes/pki/ca.crt"
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          #@overlay/match missing_ok=True
+           client-ca-file: "/etc/kubernetes/pki/ca.crt"
+#@overlay/match missing_ok=True,by=overlay.subset({"kind":"KubeadmConfigTemplate"})
+---
+spec:
+  template:
+    spec:
+      #@overlay/match missing_ok=True
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+           #@overlay/match missing_ok=True
+           client-ca-file: "/etc/kubernetes/pki/ca.crt"
+#@ end

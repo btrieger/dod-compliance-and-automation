@@ -1,0 +1,13 @@
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:data", "data")
+#@ if data.values.COMPLIANCE == "stig":
+#@overlay/match missing_ok=True,by=overlay.subset({"kind":"KubeadmControlPlane"})
+---
+spec:
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      controllerManager:
+        extraArgs:
+         #@overlay/match missing_ok=True
+         tls-min-version: VersionTLS12
+#@ end

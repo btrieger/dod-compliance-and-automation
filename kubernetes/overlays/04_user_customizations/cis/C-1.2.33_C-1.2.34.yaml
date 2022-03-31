@@ -1,0 +1,51 @@
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:assert", "assert")
+#@ load("@ytt:base64", "base64")
+#@ load("@ytt:yaml", "yaml")
+#@ load("@ytt:data", "data")
+
+#@ def encryption_conf():
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  - resources:
+    - secrets
+    providers:
+    - aescbc:
+        keys:
+        - name: key1
+          secret: mykey
+    - identity: {}
+#@ end
+
+#@ if data.values.COMPLIANCE == "cis":
+#@overlay/match missing_ok=True,by=overlay.subset({"kind":"KubeadmControlPlane"})
+---
+spec:
+  kubeadmConfigSpec:
+    preKubeadmCommands:
+    #@overlay/append
+    - bash /etc/kubernetes/set-encryption-conf.sh
+    files:
+      #@overlay/append
+      - path: /etc/kubernetes/encryption-config.yaml
+        owner: "root:root"
+        permissions: "0600"
+        encoding: base64
+        content: #@ base64.encode(yaml.encode(encryption_conf()))
+      #@overlay/append
+      - path: /etc/kubernetes/set-encryption-conf.sh
+        owner: "root:root"
+        permissions: "0700"
+        content: #@ data.read("set-encryption-conf.sh")
+    clusterConfiguration:
+      apiServer:
+        extraArgs:
+         #@overlay/match missing_ok=True
+         encryption-provider-config: "/etc/kubernetes/encryption-config.yaml"
+        extraVolumes:
+          #@overlay/append
+          - name: encryption-conf
+            hostPath: /etc/kubernetes/encryption-config.yaml 
+            mountPath: /etc/kubernetes/encryption-config.yaml
+#@ end

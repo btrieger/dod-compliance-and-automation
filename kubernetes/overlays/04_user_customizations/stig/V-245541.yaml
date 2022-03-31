@@ -1,0 +1,28 @@
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:data", "data")
+#@ if data.values.COMPLIANCE == "stig":
+#@overlay/match missing_ok=True,by=overlay.subset({"kind":"KubeadmControlPlane"})
+---
+spec:
+  kubeadmConfigSpec:
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          #@overlay/match missing_ok=True
+          streaming-connection-idle-timeout: "5m"
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          #@overlay/match missing_ok=True
+          streaming-connection-idle-timeout: "5m"
+#@overlay/match missing_ok=True,by=overlay.subset({"kind":"KubeadmConfigTemplate"})
+---
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+           #@overlay/match missing_ok=True
+           streaming-connection-idle-timeout: "5m"
+#@ end
